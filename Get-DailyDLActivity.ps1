@@ -1,4 +1,4 @@
-$dist_list = Import-Csv "C:\Users\grainwater\OneDrive - EmpowerMe Wellness\Documents\ONRcommunitydistlists.csv"
+$dist_list = Import-Csv "C:\Temp\communitydistlists.csv"
 
 $start_date = "03/22/2023"
 $end_date = Get-Date
