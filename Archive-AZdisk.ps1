@@ -1,8 +1,40 @@
-$tenant_id = 'Enter-Tenant-ID-Here'
-$sub_id = 'Enter-Subscription-ID-Here'
+<#
+.SYNOPSIS
+    
 
+.DESCRIPTION
+    This script connects to an Azure tenant and subscription, creates CSV exports of
+    Azure VMs and Disks, and then archives data about VMs and disks based on customizable functions.
+    Modify the functions (e.g., Get-AzVM, Get-AzDisk) as needed to suit your environment.
 
-Connect-AzAccount -Tenant $tenant_id -Subscriptionid $sub_id
+.PARAMETER TenantId
+    The Tenant ID for your Azure account.
+
+.PARAMETER SubscriptionId
+    The Subscription ID for your Azure account.
+
+.EXAMPLE
+    PS> .\Archive-AZdisk.ps1 -TenantId "<your-tenant-id>" -SubscriptionId "<your-subscription-id>"
+    Runs the script using the default parameters as defined in the script. Ensure you update the 
+    TenantId and SubscriptionId variables before running.
+
+.NOTES
+    Author: @gorrain
+    Date: 2025-02-13
+    Version: 1.0
+    This script requires the Az PowerShell module.
+#>
+
+param(
+    [Parameter(Mandatory = $true)]
+    [string]$TenantId,
+
+    [Parameter(Mandatory = $true)]
+    [string]$SubscriptionId
+)
+
+# Connect to Azure using the provided Tenant and Subscription IDs.
+Connect-AzAccount -Tenant $TenantId -SubscriptionId $SubscriptionId
 
 <#
 	Creates CSVs of Azure VMs for saving
@@ -19,7 +51,7 @@ function New-VM-Disk-CSVs {
 	
 }
 
-# Archive Data About VMs
+# Store Data About VM Disks
 function Export-VM-Disk-Information {
 	$VM_CSV = Import-CSV -Path ".\offlineVMs.CSV"
 	
@@ -44,7 +76,6 @@ function Export-VM-Disk-Information {
 		{
 			$c = Get-AzDisk -ResourceGroupName $vmRG -DiskName $($disk.Name)
 			$results += (Out-String -InputObject $c -Width 300)
-			# Write-Output $($disk.ManagedDisk)
 		}
 
 		$results += "`nData Disks`n"
@@ -56,7 +87,7 @@ function Export-VM-Disk-Information {
 			$results += (Out-String -InputObject $c -Width 300)
 		}
 
-		$results | Out-File ".\VM_reports\$vmName-Disks.txt"
+		$results | Out-File ".\$vmName-Disks.txt"
 
 	}
 }
@@ -71,6 +102,8 @@ function Archive-Disks {
 	{
 		$diskName = $row.Name
 		$diskRG = $row.ResourceGroupName
+
+		# Ensuring the storage account name stays within 24 characters
 		$rgStorageAccount = $("$diskRG-archivesa".ToLower()).Replace('-','').Replace('.','')
 		if ($rgStorageAccount.Length -gt 24) {
 			$rgStorageAccount = $rgStorageAccount.Substring(0,15) + "archivesa"
@@ -108,9 +141,12 @@ function Archive-Disks {
 
 		Write-Host "Now copying disk $diskName with URI $fullURI"
 		$sas = Grant-AzDiskAccess -ResourceGroupName $diskRG -DiskName $diskName -DurationInSecond $sasExpiryDuration -Access Read
+		# Copying directly to archive tier
 		azcopy copy $sas.AccessSAS $fullURI --blob-type=blockblob --block-blob-tier "Archive" --cap-mbps 1000
 		Write-Host "Copy of $diskName to storage account completed"
 	}
 }
 
-
+New-VM-Disk-CSVs
+Export-VM-Disk-Information
+Archive-Disks
