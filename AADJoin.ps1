@@ -24,10 +24,10 @@
 
 #CONSTANTS
 $SETUP_RST_PATH = "C:\Temp\SetupRST.exe"
-$SETUP_RST_URL = ""
+$SETUP_RST_URL = "<url pointing to this file>"
 
 $PPKG_INSTALL_PATH = "C:\Temp\FS3.ppkg"
-$PPKG_URL = ""
+$PPKG_URL = "<url pointing to this file>"
 
 
 Function Get-Temp-Files {
